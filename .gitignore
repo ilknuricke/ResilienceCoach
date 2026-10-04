@@ -1,0 +1,12 @@
+# Runtime data: health recordings, profiles, keys. Never commit.
+whoop-web/data/
+*.db
+*.db-wal
+*.db-shm
+*.jsonl
+runstate.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc

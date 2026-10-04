@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WHOOP Local</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --mute:#6b7280; --line:#e5e7eb;
+          --accent:#d94a3d; --ok:#1f9d55; --warn:#b7791f;
+          --z0:#9aa3ae; --z1:#7c8db5; --z2:#3b82c4; --z3:#1f9d55; --z4:#e08a1e; --z5:#d94a3d;
+          --rest:#3b82c4; --effort:#d94a3d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1116; --card:#171b22; --ink:#e8eaed; --mute:#9aa3ae; --line:#262c36;
+            --accent:#ff6b5b; --ok:#3ccf7d; --warn:#f0b44c;
+            --z0:#6b7280; --z1:#8fa0c8; --z2:#5aa2e0; --z3:#3ccf7d; --z4:#f0a443; --z5:#ff6b5b;
+            --rest:#5aa2e0; --effort:#ff6b5b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:20px 16px 48px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; letter-spacing:-.01em; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 10px; font-weight:600; }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--mute); }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--mute); }
+  .dot.on { background:var(--ok); } .dot.busy { background:var(--warn); }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(12, 1fr); margin-top:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; min-width:0; }
+  .c4 { grid-column:span 4; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
+  @media (max-width:800px) { .c4,.c8 { grid-column:span 12; } }
+  .big { font-size:40px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .big small { font-size:15px; color:var(--mute); font-weight:500; margin-left:4px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid var(--line);
+           background:var(--card); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.effort { background:var(--effort); border-color:var(--effort); color:#fff; font-weight:600; }
+  button.rest { background:var(--rest); border-color:var(--rest); color:#fff; font-weight:600; }
+  button:disabled { opacity:.4; cursor:default; }
+  input, select { font:inherit; font-size:14px; padding:7px 9px; border-radius:8px; border:1px solid var(--line);
+           background:var(--card); color:var(--ink); min-width:0; }
+  input[type=number] { width:76px; }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:14px; }
+  dt { color:var(--mute); } dd { margin:0; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; }
+  table { width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; }
+  th, td { text-align:right; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--mute); font-weight:600; font-size:12px; }
+  .scroll { overflow-x:auto; }
+  #log { font:12px/1.5 ui-monospace, Consolas, monospace; color:var(--mute); height:180px; overflow:auto;
+         white-space:pre-wrap; word-break:break-word; }
+  .note { font-size:12px; color:var(--mute); margin-top:8px; }
+  .chart { position:relative; height:240px; }
+  .chart.tall { height:320px; }
+  /* live tiles */
+  .tiles { display:grid; grid-template-columns:repeat(6, 1fr); gap:10px; }
+  @media (max-width:900px) { .tiles { grid-template-columns:repeat(3, 1fr); } }
+  @media (max-width:480px) { .tiles { grid-template-columns:repeat(2, 1fr); } }
+  .tile { border:1px solid var(--line); border-radius:10px; padding:12px; min-width:0; }
+  .tile .lbl { font-size:12px; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
+  .tile .val { font-size:34px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; margin-top:4px;
+               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tile .val small { font-size:13px; color:var(--mute); font-weight:500; margin-left:3px; }
+  .tile .sub { font-size:12px; color:var(--mute); margin-top:2px; }
+  .tile.hrTile { border-width:2px; }
+  .zbar { display:flex; height:10px; border-radius:5px; overflow:hidden; min-width:90px; background:var(--line); }
+  .zbar span { display:block; height:100%; }
+  .tag { display:inline-block; font-size:11px; font-weight:600; padding:1px 7px; border-radius:10px; color:#fff; }
+  .hidden { display:none !important; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>WHOOP Local</h1>
+    <span class="pill"><span id="dot" class="dot"></span><span id="state">offline</span><span id="roTag"></span></span>
+  </header>
+
+  <div class="grid">
+    <!-- ── live session ── -->
+    <section class="card c12">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0">Exercise session <span id="sesName" style="text-transform:none;letter-spacing:0;color:var(--ink)"></span>
+          <span style="text-transform:none;letter-spacing:0;font-weight:500"> · wearer: <b id="wearer" style="color:var(--ink)">–</b></span></h2>
+        <div class="row ctl">
+          <button id="bLive">Start live</button>
+          <select id="personSel" title="Who is wearing the band"></select>
+          <select id="sesType">
+            <option value="">Free session</option>
+            <option value="full">Calibration · 11 min</option>
+            <option value="rest">Calibration · rest only (3 min)</option>
+            <option value="exercise">Calibration · exercise only (9 min)</option>
+          </select>
+          <input id="sesNameIn" placeholder="Session name (optional)" style="width:180px">
+          <button id="bStart" class="primary">Start session</button>
+          <button id="bStop" class="hidden">Stop session</button>
+        </div>
+      </div>
+
+      <div id="viewBanner" class="hidden row" style="margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--rest);color:#fff;font-weight:600;justify-content:space-between">
+        <span id="viewBannerText"></span><button id="bBackLive" style="background:#fff;color:#111;border:0">Back to live</button>
+      </div>
+      <div id="pauseNote" class="hidden" style="margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--warn);color:#111;font-weight:600"></div>
+      <div id="calIdle" class="note hidden" style="margin:-4px 0 12px">Calibration learns your resting and max HR as one guided session. 3 min sitting still, then 3 min easy, 2 min hard, 1 min as hard as you safely can, and 2 min standing still for recovery. The band buzzes at each change; just follow the screen. Your peak is a lower bound on true max HR. Skip the all-out minute if you have a heart condition or feel unwell.</div>
+      <div id="calRun" class="hidden" style="margin:0 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <div><span class="note" id="calStep" style="margin:0"></span>
+            <div style="font-size:26px;font-weight:700" id="calLabel"></div></div>
+          <div style="font-size:44px;font-weight:700;font-variant-numeric:tabular-nums" id="calLeft">0:00</div>
+        </div>
+        <div style="font-size:17px;margin:6px 0 10px" id="calText"></div>
+        <div class="zbar" style="height:8px"><span id="calBar" style="width:0%;background:var(--accent)"></span></div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile hrTile" id="hrTile"><div class="lbl">Heart rate</div><div class="val"><span id="tHr">--</span><small>bpm</small></div><div class="sub" id="tHrPct">&nbsp;</div></div>
+        <div class="tile"><div class="lbl">Zone</div><div class="val" id="tZone">–</div><div class="sub" id="tZoneName">&nbsp;</div></div>
+        <div class="tile"><div class="lbl">Intensity</div><div class="val"><span id="tInt">--</span><small>mg</small></div><div class="sub" id="tIntName">&nbsp;</div></div>
+        <div class="tile"><div class="lbl">Rhythm</div><div class="val"><span id="tRhy">--</span><small>/min</small></div><div class="sub">steps / repeats</div></div>
+        <div class="tile"><div class="lbl">Phase</div><div class="val" id="tPhase" style="font-size:24px;padding-top:6px">–</div><div class="sub" id="tPhaseT">&nbsp;</div></div>
+        <div class="tile"><div class="lbl">Session</div><div class="val" id="tElapsed">0:00</div><div class="sub" id="tDelta">&nbsp;</div></div>
+      </div>
+
+      <div class="row ctl" id="markRow" style="margin-top:12px">
+        <button id="bEffort" class="effort">▶ Effort</button>
+        <button id="bRest" class="rest">■ Rest</button>
+        <input id="markLabel" placeholder="Custom marker, e.g. Music on" style="flex:1;min-width:160px;max-width:300px">
+        <select id="markKind"><option value="effort">effort</option><option value="rest">rest</option></select>
+        <button id="bMark">Add marker</button>
+        <span class="note" style="margin:0">or double-tap the band to switch effort ↔ rest</span>
+      </div>
+
+      <div class="chart tall" style="margin-top:14px"><canvas id="sesChart"></canvas></div>
+      <p class="note">Intensity = ENMO, the standard wrist-accelerometer measure (mean of |acceleration| − 1 g, in milli-g): roughly &lt;50 still, 50–150 light, 150–400 moderate, &gt;400 vigorous. Rhythm = repeats per minute of the wrist movement, about steps/min when walking, marching or shuffling. Blank when the movement isn't regular.</p>
+    </section>
+
+    <section class="card c8">
+      <h2>Phases</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>Time</th><th>Mean HR</th><th>Peak</th><th>Δ vs baseline</th><th>Intensity</th><th>Rhythm</th><th style="text-align:left">Time in zone</th></tr></thead>
+          <tbody id="phases"><tr><td colspan="8" style="text-align:left;color:var(--mute)">Start a session. The first phase is a resting baseline (aim for 2 min).</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card c4">
+      <h2>Heart-rate recovery</h2>
+      <div id="hrr" class="note" style="margin:0">Drop in HR during the first 60 s after each effort → rest switch. Bigger is better: &gt;12 bpm is typical after hard effort, and &lt;12 is a classic red flag.</div>
+      <table style="margin-top:8px"><tbody id="hrrRows"></tbody></table>
+    </section>
+
+    <section class="card c8">
+      <h2>Past sessions</h2>
+      <div class="scroll"><table><thead><tr><th>Session</th><th style="text-align:left">Person</th><th>Started</th><th>Length</th><th></th></tr></thead><tbody id="sessions"></tbody></table></div>
+      <p class="note" id="viewNote"></p>
+    </section>
+
+    <section class="card c4">
+      <h2>Heart-rate profile · <span id="profName" style="text-transform:none;letter-spacing:0;color:var(--ink)"></span></h2>
+      <div class="row" style="margin-bottom:10px">
+        <label class="note" style="margin:0">Age <input id="pAge" type="number" min="10" max="100" style="width:64px"></label>
+        <label class="note" style="margin:0">Sex <select id="pSex"><option value="">–</option><option value="F">female</option><option value="M">male</option></select></label>
+      </div>
+      <dl>
+        <dt>Max HR</dt><dd><b id="pMax">–</b> <span class="note" id="pMaxSrc" style="margin:0"></span></dd>
+        <dt>Resting HR</dt><dd><b id="pRest">–</b> <span class="note" id="pRestSrc" style="margin:0"></span></dd>
+      </dl>
+      <div class="note" id="zoneInfo"></div>
+      <details class="ctl" style="margin-top:10px">
+        <summary class="note" style="cursor:pointer;margin:0">Override manually</summary>
+        <div class="row" style="margin-top:8px">
+          <label class="note" style="margin:0">Max <input id="hrMax" type="number" min="120" max="230" placeholder="auto"></label>
+          <label class="note" style="margin:0">Rest <input id="hrRest" type="number" min="30" max="110" placeholder="auto"></label>
+          <button id="bSettings">Save</button>
+          <button id="bResetLearn" title="Forget learned values">Reset learned</button>
+          <button id="bRelearn" title="Recompute from this person's stored sessions">Recompute</button>
+          <button id="bRename">Rename</button>
+        </div>
+        <div class="note">Leave blank to use the learned values. A lab test or a real all-out effort beats both.</div>
+      </details>
+    </section>
+
+    <!-- ── band / sync / history ── -->
+    <section class="card c4">
+      <h2>Band</h2>
+      <div class="row ctl" style="margin-bottom:12px">
+        <button id="bConnect" class="primary">Connect</button>
+        <button id="bDisconnect">Disconnect</button>
+        <button id="bBuzz">Buzz</button>
+      </div>
+      <dl>
+        <dt>Address</dt><dd id="addr">–</dd>
+        <dt>Battery</dt><dd id="batt">–</dd>
+        <dt>Serial</dt><dd id="serial">–</dd>
+      </dl>
+      <p class="note">First time: close the WHOOP phone app (or turn off phone Bluetooth), take the band off and double-tap it, then Connect.</p>
+    </section>
+
+    <section class="card c4">
+      <h2>Sync history</h2>
+      <div class="big"><span id="recs">0</span><small>records</small></div>
+      <div class="note" id="syncState">&nbsp;</div>
+      <div class="row ctl" style="margin-top:12px"><button id="bSync">Sync now</button></div>
+      <p class="note">Downloads everything stored on the band (1 record/s). The band keeps its copy, so re-syncing is safe.</p>
+    </section>
+
+    <section class="card c4">
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+
+    <section class="card c12">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Heart rate history</h2>
+        <select id="range">
+          <option value="6">6 h</option><option value="24" selected>24 h</option>
+          <option value="72">3 days</option><option value="168">7 days</option>
+        </select>
+      </div>
+      <div class="chart"><canvas id="histChart"></canvas></div>
+    </section>
+
+    <section class="card c12">
+      <h2>Daily summary</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Day</th><th>Worn</th><th>Resting HR</th><th>Mean HR</th><th>Max HR</th><th>RMSSD</th><th>Strain</th><th>Recovery</th></tr></thead>
+          <tbody id="daily"><tr><td colspan="8" style="text-align:left;color:var(--mute)">No synced data yet.</td></tr></tbody>
+        </table>
+      </div>
+      <p class="note">Resting HR = 5th-percentile HR of the day; RMSSD from the band's beat-to-beat intervals. Strain and recovery use the reference client's simple formulas. Rough indicators only: not WHOOP's scores, and not the full OpenStrap analytics.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+if (location.search.includes('key=')) history.replaceState(null, '', location.pathname);  // cookie now holds it
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ZC = i => css('--z' + i);
+const ZNAME = ['below zones', 'Z1 · very light', 'Z2 · light', 'Z3 · moderate', 'Z4 · hard', 'Z5 · max'];
+let S = {};                 // band status
+let ME = { control: true }; // can this viewer control?
+let SES = { active: false, markers: [], samples: [], hr_max: 190, hr_rest: 60 };
+let TICKS = [];             // live ticks outside a session (last 5 min)
+let VIEW = null;            // a past session being viewed
+
+async function post(path) {
+  const r = await fetch(path, { method: 'POST' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { addLog('⚠ ' + (j.detail || r.statusText)); throw new Error(j.detail); }
+  return j;
+}
+function addLog(text, t) {
+  const el = $('log');
+  const ts = new Date((t || Date.now() / 1000) * 1000).toLocaleTimeString();
+  el.textContent += `${ts}  ${text}\n`;
+  if (el.textContent.length > 20000) el.textContent = el.textContent.slice(-15000);
+  el.scrollTop = el.scrollHeight;
+}
+const mmss = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+const f = (v, u = '') => v == null ? '–' : v + u;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const intName = e => e == null ? '' : e < 50 ? 'still' : e < 150 ? 'light' : e < 400 ? 'moderate' : 'vigorous';
+
+// ── band status ──
+function render(s) {
+  S = s;
+  const busy = s.busy, ro = !ME.control;
+  $('dot').className = 'dot ' + (busy ? 'busy' : s.connected ? 'on' : '');
+  $('state').textContent = busy ? busy + '…' : s.connected ? (s.live ? (s.stalled ? 'live · paused' : 'live') : 'connected') : 'offline';
+  if (s.live && s.stalled) $('dot').className = 'dot busy';
+  $('pauseNote').classList.toggle('hidden', !(s.live && s.stalled));
+  $('pauseNote').textContent = s.wrist === false
+    ? 'Paused: the band reports it is off your wrist, so it has stopped its sensors. It resumes automatically when you put it back on. The gap is recorded in the session.'
+    : 'Paused: no data from the band for a few seconds. Trying to restart the stream…';
+  $('addr').textContent = s.address || '–';
+  $('batt').textContent = s.battery_pct != null ? `${Math.round(s.battery_pct)}%${s.charging ? ' ⚡' : ''}` : '–';
+  $('serial').textContent = s.hello?.serial || '–';
+  $('recs').textContent = (s.sync_records || 0).toLocaleString();
+  $('syncState').textContent = busy === 'syncing' ? 'Syncing…' : s.sync_complete ? 'Complete ✓' : ' ';
+  $('bConnect').disabled = ro || s.connected || !!busy;
+  $('bDisconnect').disabled = ro || !s.connected;
+  $('bBuzz').disabled = ro || !s.connected || !!busy;
+  $('bSync').disabled = ro || !!busy;
+  $('bLive').disabled = ro || !!busy;
+  $('bLive').textContent = s.live ? 'Stop live' : 'Start live';
+  renderSessionControls();
+}
+
+function renderSessionControls() {
+  const ro = !ME.control, a = SES.active;
+  document.querySelectorAll('.ctl, #markRow').forEach(el => el.classList.toggle('hidden', ro));
+  $('bStart').classList.toggle('hidden', a); $('sesNameIn').classList.toggle('hidden', a);
+  $('bStop').classList.toggle('hidden', !a);
+  ['bEffort', 'bRest', 'bMark', 'markLabel', 'markKind'].forEach(id => $(id).disabled = !a);
+  $('sesName').textContent = a ? (SES.name ? '· ' + SES.name : '· recording') : '';
+  $('bStart').disabled = !(S.live || S.replay);
+  $('bStart').title = S.live ? '' : 'Start live first';
+  renderCal();
+}
+
+// ── live tiles ──
+function renderTick(k) {
+  const z = k.zone || 0;
+  $('tHr').textContent = k.hr || '--';
+  $('hrTile').style.borderColor = k.hr ? ZC(z) : css('--line');
+  $('tHr').style.color = k.hr ? ZC(z) : '';
+  $('tHrPct').textContent = k.hr ? Math.round(100 * k.hr / SES.hr_max) + '% of max' : ' ';
+  $('tZone').textContent = z ? 'Z' + z : '–'; $('tZone').style.color = z ? ZC(z) : '';
+  $('tZoneName').textContent = k.hr ? ZNAME[z] : ' ';
+  $('tInt').textContent = k.enmo_mg != null ? Math.round(k.enmo_mg) : '--';
+  $('tIntName').textContent = intName(k.enmo_mg) || ' ';
+  $('tRhy').textContent = k.rhythm != null ? Math.round(k.rhythm) : '--';
+  if (SES.active) {
+    const m = SES.markers[SES.markers.length - 1];
+    $('tPhase').textContent = m ? m.label : '–';
+    $('tPhase').style.color = m ? css(m.kind === 'effort' ? '--effort' : '--rest') : '';
+    $('tPhaseT').textContent = m ? mmss(k.t - m.t) + ' in phase' : ' ';
+    $('tElapsed').textContent = mmss(k.t - SES.start);
+    const base = SES.summary?.phases?.[0]?.mean_hr;
+    $('tDelta').textContent = (base && k.hr) ? `${k.hr - base >= 0 ? '+' : ''}${Math.round(k.hr - base)} bpm vs baseline` : ' ';
+  }
+}
+
+// ── session chart ──
+const markerPlugin = {
+  id: 'markers',
+  beforeDatasetsDraw(c) {   // zone bands behind the HR line
+    const y = c.scales.y, a = c.chartArea, ctx = c.ctx, hm = (VIEW || SES).hr_max || SES.hr_max;
+    [0.5, 0.6, 0.7, 0.8, 0.9, 1.2].forEach((e, i, arr) => {
+      if (i === arr.length - 1) return;
+      const top = Math.max(a.top, y.getPixelForValue(arr[i + 1] * hm));
+      const bot = Math.min(a.bottom, y.getPixelForValue(e * hm));
+      if (bot <= top) return;   // zone entirely outside the visible HR range
+      ctx.save(); ctx.fillStyle = ZC(i + 1) + '14';
+      ctx.fillRect(a.left, top, a.right - a.left, bot - top);
+      ctx.restore();
+    });
+  },
+  afterDatasetsDraw(c) {    // marker lines
+    const ms = c.$markers || [], x = c.scales.x, a = c.chartArea, ctx = c.ctx;
+    ms.forEach(m => {
+      const px = x.getPixelForValue(m.x);
+      if (px < a.left || px > a.right) return;
+      const col = css(m.kind === 'effort' ? '--effort' : '--rest');
+      ctx.save(); ctx.strokeStyle = col; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = col; ctx.font = '600 11px system-ui';
+      ctx.fillText(m.label, px + 4, a.top + 12); ctx.restore();
+    });
+  }
+};
+const ses = new Chart($('sesChart'), {
+  data: { datasets: [
+    { type: 'line', label: 'HR', yAxisID: 'y', data: [], borderWidth: 2.5, pointRadius: 0, tension: .25, spanGaps: 5,
+      segment: { borderColor: ctx => ZC(ctx.p1.raw?.z || 0) } },
+    { type: 'bar', label: 'Intensity', yAxisID: 'y2', data: [], backgroundColor: css('--mute') + '55', barPercentage: 1, categoryPercentage: 1 },
+    { type: 'line', label: 'Rhythm', yAxisID: 'y3', data: [], borderColor: css('--z2'), borderWidth: 1, pointRadius: 1.5, showLine: false, hidden: false }
+  ] },
+  plugins: [markerPlugin],
+  options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false },
+    plugins: { legend: { labels: { color: css('--mute'), boxWidth: 12 } },
+      tooltip: { callbacks: { title: it => mmss(it[0].parsed.x) } } },
+    scales: {
+      x: { type: 'linear', ticks: { color: css('--mute'), callback: v => mmss(v), maxTicksLimit: 10 }, grid: { color: css('--line') } },
+      y: { position: 'left', suggestedMin: 60, suggestedMax: 140, title: { display: true, text: 'bpm', color: css('--mute') },
+           ticks: { color: css('--mute') }, grid: { color: css('--line') } },
+      y2: { position: 'right', min: 0, suggestedMax: 600, title: { display: true, text: 'mg', color: css('--mute') },
+            ticks: { color: css('--mute') }, grid: { display: false } },
+      y3: { display: false, min: 0, max: 260 } } }
+});
+
+function drawSessionChart() {
+  const src = VIEW || (SES.active ? SES : null);
+  let samples, t0, markers = [];
+  if (src) { samples = src.samples; t0 = src.start ?? samples[0]?.t ?? 0; markers = src.markers; }
+  else { samples = TICKS; t0 = TICKS.length ? TICKS[TICKS.length - 1].t - 300 : 0; }
+  ses.data.datasets[0].data = samples.map(s => ({ x: s.t - t0, y: s.hr || null, z: s.zone }));
+  ses.data.datasets[1].data = samples.map(s => ({ x: s.t - t0, y: s.enmo_mg }));
+  ses.data.datasets[2].data = samples.filter(s => s.rhythm).map(s => ({ x: s.t - t0, y: s.rhythm }));
+  ses.$markers = markers.map(m => ({ x: m.t - t0, label: m.label, kind: m.kind }));
+  if (!src) { ses.options.scales.x.min = 0; ses.options.scales.x.max = 300; }
+  else { delete ses.options.scales.x.min; delete ses.options.scales.x.max; }
+  ses.update();
+}
+
+function renderSummary(sum) {
+  if (!sum || !sum.phases?.length) return;
+  $('phases').innerHTML = sum.phases.map(p => {
+    const tot = p.zone_s.reduce((a, b) => a + b, 0) || 1;
+    const bar = p.zone_s.map((v, i) => v ? `<span style="width:${100 * v / tot}%;background:${ZC(i)}" title="${i ? 'Z' + i : 'below'}: ${mmss(v)}"></span>` : '').join('');
+    const d = p.delta_hr == null ? '–' : (p.delta_hr >= 0 ? '+' : '') + p.delta_hr;
+    return `<tr><td><span class="tag" style="background:${css(p.kind === 'effort' ? '--effort' : '--rest')}">${p.kind}</span> ${esc(p.label)}</td>
+      <td>${mmss(p.dur_s)}</td><td>${f(p.mean_hr)}</td><td>${f(p.peak_hr)}</td><td>${d}</td>
+      <td>${f(p.mean_enmo_mg && Math.round(p.mean_enmo_mg), ' mg')}</td><td>${f(p.mean_rhythm && Math.round(p.mean_rhythm), '/min')}</td>
+      <td style="text-align:left"><div class="zbar">${bar}</div></td></tr>`;
+  }).join('');
+  $('hrrRows').innerHTML = sum.hrr.length ? sum.hrr.map(h => `<tr><td>after ${esc(h.after)}</td>
+    <td>${f(h.hr_at_stop)} → ${f(h.hr_60s)}</td><td><b>${h.hrr60 == null ? 'measuring…' : '−' + h.hrr60 + ' bpm'}</b></td></tr>`).join('')
+    : '<tr><td style="color:var(--mute)">No effort → rest switch yet.</td></tr>';
+}
+
+async function loadSessions() {
+  const list = await fetch('/api/sessions').then(r => r.json());
+  const opts = sel => `<option value="">–</option>` + PEOPLE.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  const who = id => PEOPLE.find(p => p.id === id)?.name || '–';
+  $('sessions').innerHTML = list.length ? list.map(s => `<tr><td>${esc(s.name || 'Session ' + s.id)}</td>
+    <td style="text-align:left">${ME.control && s.end ? `<select data-assign="${s.id}">${opts(s.profile)}</select>` : esc(who(s.profile))}</td>
+    <td>${new Date(s.start * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+    <td>${s.end ? mmss(s.end - s.start) : 'live'}</td>
+    <td><a href="#" data-view="${s.id}">view</a> · <a href="/api/session/${s.id}/csv" title="per-second HR, zone, intensity, rhythm + markers, phases, HRR">summary CSV</a>
+      · <a href="/api/session/${s.id}/imu.csv" title="every accelerometer/gyro sample (~104 Hz)">motion (104 Hz)</a>
+      · <a href="/api/session/${s.id}/raw.jsonl" title="every live record verbatim + events, with host and band timestamps">raw</a></td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:left;color:var(--mute)">None yet.</td></tr>';
+}
+$('sessions').onchange = async e => {
+  const sid = e.target.dataset?.assign; if (!sid) return;
+  await post(`/api/session/${sid}/assign?pid=${e.target.value}`).catch(() => {});
+  loadSessions(); loadSettings();
+};
+function backToLive() {
+  VIEW = null;
+  $('viewNote').textContent = '';
+  $('viewBanner').classList.add('hidden');
+  drawSessionChart();
+  if (SES.summary) renderSummary(SES.summary);
+}
+$('sessions').onclick = async e => {
+  const id = e.target.dataset?.view; if (!id) return; e.preventDefault();
+  if (SES.active && +id === SES.id) { backToLive(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const d = await fetch('/api/session/' + id).then(r => r.json());
+  VIEW = { ...d, id: +id, start: d.markers[0]?.t ?? d.samples[0]?.t, hr_max: SES.hr_max };
+  const c = d.counts || {};
+  $('viewNote').innerHTML = `Session ${id}: ${c.samples ?? 0} per-second samples, ${c.imu_records ?? 0} motion records (${(c.imu_records ?? 0) * 100} samples at ~104 Hz), ${c.raw_records ?? 0} raw records, ${c.markers ?? 0} markers, ${c.events ?? 0} events.`;
+  $('viewBanner').classList.remove('hidden');
+  $('viewBannerText').textContent = `Viewing past session ${id}. The chart and phase table are NOT live` +
+    (SES.active ? ' (a session is recording right now).' : '.');
+  drawSessionChart(); renderSummary(d.summary);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+$('bBackLive').onclick = backToLive;
+
+// ── history ──
+const hist = new Chart($('histChart'), {
+  type: 'line',
+  data: { datasets: [
+    { label: 'range', data: [], borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--accent') + '22' },
+    { label: 'min', data: [], borderWidth: 0, pointRadius: 0 },
+    { label: 'avg', data: [], borderColor: css('--accent'), borderWidth: 1.5, pointRadius: 0, tension: .2 } ] },
+  options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false } }, spanGaps: 300,
+    scales: { x: { type: 'linear', ticks: { color: css('--mute'), maxTicksLimit: 8,
+                callback: v => { const d = new Date(v*1000); return d.toLocaleDateString(undefined,{weekday:'short'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } },
+                grid: { color: css('--line') } },
+              y: { ticks: { color: css('--mute') }, grid: { color: css('--line') } } } }
+});
+async function loadHistory() {
+  const hours = +$('range').value;
+  const bucket = hours <= 24 ? 60 : hours <= 72 ? 300 : 900;
+  const h = await fetch(`/api/history/hr?hours=${hours}&bucket=${bucket}`).then(r => r.json());
+  hist.data.datasets[0].data = h.points.map(p => ({ x: p.t, y: p.max }));
+  hist.data.datasets[1].data = h.points.map(p => ({ x: p.t, y: p.min }));
+  hist.data.datasets[2].data = h.points.map(p => ({ x: p.t, y: p.hr }));
+  hist.update();
+  const d = await fetch('/api/history/daily?days=14').then(r => r.json());
+  if (d.days.length) {
+    $('daily').innerHTML = d.days.reverse().map(r => `<tr><td>${r.day}</td>
+      <td>${Math.floor(r.minutes_worn/60)}h ${r.minutes_worn%60}m</td><td>${r.resting_hr}</td><td>${r.mean_hr}</td>
+      <td>${r.max_hr}</td><td>${f(r.rmssd_ms, ' ms')}</td><td>${f(r.strain_0_21)}</td><td>${f(r.recovery_0_100, '%')}</td></tr>`).join('');
+  }
+}
+
+// ── settings ──
+let PEOPLE = [];
+function renderSettings(s) {
+  SES.hr_max = s.hr_max; SES.hr_rest = s.hr_rest;
+  const changed = JSON.stringify(PEOPLE) !== JSON.stringify(s.profiles || []);
+  PEOPLE = s.profiles || [];
+  $('personSel').innerHTML = PEOPLE.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '<option value="__new">+ New person…</option>';
+  $('personSel').value = s.profile;
+  $('wearer').textContent = s.profile_name || '–';
+  $('profName').textContent = s.profile_name || '';
+  if (changed) loadSessions();
+  $('pMax').textContent = Math.round(s.hr_max) + ' bpm';
+  const best = s.hr_max_seen ? `best measured ${Math.round(s.hr_max_seen)}` : 'no hard effort measured yet';
+  $('pMaxSrc').textContent = {
+    manual: 'set manually',
+    measured: `measured (highest sustained, ${new Date((s.hr_max_seen_t || 0) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' })})` +
+              (s.hr_max_pred ? `; age predicts ${Math.round(s.hr_max_pred)}` : ''),
+    'age-predicted': `age-predicted, ${s.hr_max_formula}; ${best}`,
+    placeholder: `placeholder: enter age, or do a hard effort; ${best}`,
+  }[s.hr_max_source] || '';
+  if (document.activeElement !== $('pAge')) $('pAge').value = s.age ?? '';
+  $('pSex').value = s.sex ?? '';
+  $('pAge').disabled = $('pSex').disabled = !ME.control;
+  $('pRest').textContent = Math.round(s.hr_rest) + ' bpm';
+  $('pRestSrc').textContent = s.hr_rest_manual ? 'set manually'
+    : s.n_baselines ? `median of ${s.n_baselines} session baseline${s.n_baselines > 1 ? 's' : ''}` : 'placeholder until a 30 s+ still baseline';
+  const z = [0.5, 0.6, 0.7, 0.8, 0.9].map(e => Math.round(e * s.hr_max));
+  $('zoneInfo').innerHTML = z.map((v, i) => `<span style="color:${ZC(i + 1)}">Z${i + 1} ≥${v}</span>`).join(' · ');
+  $('hrMax').value = s.hr_max_manual ?? ''; $('hrRest').value = s.hr_rest_manual ?? '';
+  if (!VIEW) drawSessionChart();
+}
+async function loadSettings() { renderSettings(await fetch('/api/settings').then(r => r.json())); }
+$('bSettings').onclick = async () => {
+  const q = new URLSearchParams({ hr_max: $('hrMax').value || 0, hr_rest: $('hrRest').value || 0 });
+  await post('/api/settings?' + q).catch(() => {});
+};
+$('personSel').onchange = async () => {
+  const v = $('personSel').value;
+  if (v === '__new') {
+    const name = prompt('Name or ID for the new person (e.g. Subject 3)');
+    if (name) await post('/api/profiles?name=' + encodeURIComponent(name)).catch(() => {});
+  } else await post('/api/profiles/select?pid=' + v).catch(() => {});
+  loadSettings();
+};
+$('pAge').onchange = () => post('/api/settings?age=' + ($('pAge').value || 0)).catch(() => {});
+$('pSex').onchange = () => post('/api/settings?sex=' + ($('pSex').value || 'none')).catch(() => {});
+$('bRelearn').onclick =() => post('/api/profiles/relearn').catch(() => {});
+$('bRename').onclick = async () => {
+  const name = prompt('New name', $('profName').textContent);
+  if (name) await post(`/api/profiles/rename?pid=${$('personSel').value}&name=${encodeURIComponent(name)}`).catch(() => {});
+};
+$('bResetLearn').onclick = async () => {
+  if (confirm('Forget the learned max and resting HR?')) await post('/api/settings?reset_learned=true').catch(() => {});
+};
+
+// ── calibration ──
+let CAL = { running: false };
+function renderCal() {
+  const r = CAL.running, st = CAL.step;
+  $('calRun').classList.toggle('hidden', !r);
+  $('calIdle').classList.toggle('hidden', r || SES.active || !$('sesType').value);
+  $('sesType').classList.toggle('hidden', SES.active);
+  $('personSel').classList.toggle('hidden', SES.active);
+  // manual markers would fight the timed protocol
+  ['bEffort', 'bRest', 'bMark', 'markLabel', 'markKind'].forEach(id => $(id).disabled = !SES.active || r);
+  if (r && st) {
+    $('calStep').textContent = `Calibration · step ${st.i} of ${st.n}`;
+    $('calLabel').textContent = st.label;
+    $('calLabel').style.color = css(st.kind === 'effort' ? '--effort' : '--rest');
+    $('calText').textContent = st.text;
+  }
+}
+setInterval(() => {
+  if (!CAL.running || !CAL.step) return;
+  const left = CAL.step.ends - Date.now() / 1000;
+  $('calLeft').textContent = mmss(left);
+  $('calBar').style.width = Math.min(100, 100 * (1 - left / CAL.step.secs)) + '%';
+}, 250);
+$('sesType').onchange = renderCal;
+
+// ── websocket ──
+function connectWS() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'status') render(m);
+    else if (m.type === 'log') addLog(m.text, m.t);
+    else if (m.type === 'backlog') m.log.forEach(x => addLog(x.text, x.t));
+    else if (m.type === 'synced') loadHistory();
+    else if (m.type === 'session') {
+      const was = SES.active;
+      SES = { ...SES, ...m };
+      if (m.summary) renderSummary(m.summary);
+      renderSessionControls(); drawSessionChart();
+      if (was !== SES.active) loadSessions();
+      if (SES.active && !was && VIEW) backToLive();   // a new session always shows live
+    }
+    else if (m.type === 'settings') renderSettings(m);
+    else if (m.type === 'calibration') { CAL = m; renderCal(); }
+    else if (m.type === 'marker') { SES.markers.push(m); drawSessionChart(); }
+    else if (m.type === 'summary') { SES.summary = m; if (!VIEW) renderSummary(m); }
+    else if (m.type === 'tick') {
+      renderTick(m);
+      if (SES.active) SES.samples.push({ ...m });
+      else { TICKS.push(m); while (TICKS.length && TICKS[0].t < m.t - 300) TICKS.shift(); }
+      if (!VIEW) drawSessionChart();
+    }
+  };
+  ws.onclose = () => { render({ ...S, connected: false, busy: null }); setTimeout(connectWS, 2000); };
+}
+
+$('bConnect').onclick = () => post('/api/connect').catch(() => {});
+$('bDisconnect').onclick = () => post('/api/disconnect').catch(() => {});
+$('bBuzz').onclick = () => post('/api/buzz').catch(() => {});
+$('bSync').onclick = () => post('/api/sync').catch(() => {});
+$('bLive').onclick = () => post(S.live ? '/api/live/stop' : '/api/live/start').catch(() => {});
+$('bStart').onclick = () => post(`/api/session/start?protocol=${$('sesType').value}&name=${encodeURIComponent($('sesNameIn').value)}`).catch(() => {});
+$('bStop').onclick = () => { if (confirm(CAL.running ? 'Stop the calibration early? Values learned so far are kept.' : 'Stop this session?')) post('/api/session/stop').catch(() => {}); };
+$('bEffort').onclick = () => { const n = SES.markers.filter(m => m.kind === 'effort').length + 1;
+  post(`/api/session/mark?kind=effort&label=${encodeURIComponent('Effort ' + n)}`).catch(() => {}); };
+$('bRest').onclick = () => { const n = SES.markers.filter(m => m.kind === 'effort').length;
+  post(`/api/session/mark?kind=rest&label=${encodeURIComponent('Rest ' + n)}`).catch(() => {}); };
+$('bMark').onclick = () => { const l = $('markLabel').value.trim(); if (!l) return;
+  post(`/api/session/mark?kind=${$('markKind').value}&label=${encodeURIComponent(l)}`).then(() => $('markLabel').value = '').catch(() => {}); };
+$('markLabel').onkeydown = e => { if (e.key === 'Enter') $('bMark').click(); };
+$('range').onchange = loadHistory;
+
+fetch('/api/whoami').then(r => r.json()).then(m => {
+  ME = m;
+  if (!m.control) $('roTag').textContent = '· view-only';
+  render(S); loadSettings();
+}).catch(() => {});
+connectWS();
+loadHistory();
+loadSessions();
+</script>
+</body>
+</html>

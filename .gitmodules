@@ -1,0 +1,3 @@
+[submodule "openstrap-research"]
+	path = openstrap-research
+	url = https://github.com/OpenStrap/research.git
