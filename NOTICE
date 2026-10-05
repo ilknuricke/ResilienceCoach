@@ -1,0 +1,8 @@
+ResilienceCoach
+Copyright 2026 ILKNUR ICKE
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It uses OpenStrap research (https://github.com/OpenStrap/research), included as
+a git submodule under its own MIT License. OpenStrap and this project are not
+affiliated with, endorsed by, or connected to WHOOP.

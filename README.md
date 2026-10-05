@@ -85,3 +85,9 @@ The Bluetooth protocol client is [OpenStrap/research](https://github.com/OpenStr
 (MIT). This project is not affiliated with, endorsed by, or connected to WHOOP. It is a
 research prototype, not a medical device. It diagnoses nothing, and its numbers are not
 WHOOP's scores.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE).
+Commits up to and including `aa0c1a4` were published under the MIT License and remain
+available under it.
