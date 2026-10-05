@@ -1,5 +1,5 @@
 # Runtime data: health recordings, profiles, keys. Never commit.
-whoop-web/data/
+sense/data/
 *.db
 *.db-wal
 *.db-shm

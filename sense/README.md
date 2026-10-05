@@ -1,7 +1,8 @@
-# WHOOP Local
+# Resilience Sense
 
-A local web dashboard for a WHOOP 4.0, running on Windows. It's a thin FastAPI and
-browser layer over OpenStrap's reference Python client
+The local sensing and session server of ResilienceCoach: a web dashboard running on
+Windows. It is built to take several wearables. The first supported device is a
+WHOOP 4.0, connected through OpenStrap's reference Python client
 (`../openstrap-research/research_playground.py`, unmodified). The client handles the BLE
 protocol, the sync/ACK state machine and the decoders.
 
@@ -32,15 +33,15 @@ tagged `replay`, and learning is off, so no one's profile changes.
 ## Sharing on the local network
 
 Run `start-lan.bat` (or `server.py --lan`). The share link is
-`http://whoop.local:8765/?key=<passcode>`. It stays the same on any Wi-Fi because the
-server announces `whoop.local` over mDNS and re-announces it when the PC's IP changes.
-Set `WHOOP_MDNS_NAME` to use a different name. The console also prints an IP-based
+`http://resilience.local:8765/?key=<passcode>`. It stays the same on any Wi-Fi because the
+server announces `resilience.local` over mDNS and re-announces it when the PC's IP changes.
+Set `SENSE_MDNS_NAME` to use a different name. The console also prints an IP-based
 fallback link, for devices that can't resolve `.local` names (some older Android phones).
 
 - On this PC (localhost) you get full control, with no passcode.
 - Anyone else needs the passcode link and is **view-only**. They see live HR, history
   and the daily table. Connect, sync, live and buzz are refused.
-  Set `WHOOP_REMOTE_CONTROL=1` to give them control too.
+  Set `SENSE_REMOTE_CONTROL=1` to give them control too.
 - The passcode is `share_key` in `data/config.json`. Delete that entry and restart to
   rotate it.
 - Collaborators need this PC's firewall to allow inbound Python. On guest or corporate

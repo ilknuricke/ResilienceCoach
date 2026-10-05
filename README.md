@@ -21,19 +21,20 @@ and any aging relevance still needs validation.
 Everything runs on your own computer. No cloud service is involved, and no data leaves
 the machine.
 
-## WHOOP Local
+## Resilience Sense
 
-**WHOOP Local** (`whoop-web/`) is the sensing and session layer. It connects to a WHOOP 4.0
-band over Bluetooth and serves a live dashboard in the browser:
+**Resilience Sense** (`sense/`) is the sensing and session layer. It is built to take
+several wearables. The first supported device is a **WHOOP 4.0** band, connected over
+Bluetooth. Sense serves a live dashboard in the browser:
 
 - live heart rate, movement intensity (wrist accelerometer, ~104 Hz) and movement rhythm
 - guided sessions with timed steps, markers and haptic cues on the band
 - per-person profiles: resting and max HR learned from the data, plus age-predicted max HR
 - every live record saved verbatim per session, with CSV and raw exports
-- read-only sharing on the local network (`whoop.local`, passcode-protected)
+- read-only sharing on the local network (`resilience.local`, passcode-protected)
 - crash recovery: a supervisor restarts the server and resumes the open session
 
-![WHOOP Local session view: heart rate coloured by zone, wrist intensity and rhythm, phase markers, phase table and heart-rate recovery](docs/images/whoop-local-session.png)
+![Resilience Sense session view: heart rate coloured by zone, wrist intensity and rhythm, phase markers, phase table and heart-rate recovery](docs/images/sense-session.png)
 
 *An exercise calibration session: heart rate coloured by zone, with wrist movement
 intensity (bars) and rhythm (dots) underneath. Phase markers run from baseline through
@@ -51,32 +52,32 @@ intervals after the session.
 
 ```bash
 git clone --recursive https://github.com/ilknuricke/ResilienceCoach.git
-cd ResilienceCoach/whoop-web
+cd ResilienceCoach/sense
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Then double-click `whoop-web/start-lan.bat` (shared on the local network) or
-`start.bat` (this PC only). `stop.bat` stops it. See [whoop-web/README.md](whoop-web/README.md)
+Then double-click `sense/start-lan.bat` (shared on the local network) or
+`start.bat` (this PC only). `stop.bat` stops it. See [sense/README.md](sense/README.md)
 for connecting the band, sessions, calibration and the data that is stored.
 
-Close the WHOOP phone app (or turn off phone Bluetooth) before connecting. Only one
-device can hold the band at a time.
+With the WHOOP band, close the WHOOP phone app (or turn off phone Bluetooth) before
+connecting. Only one device can hold the band at a time.
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| `whoop-web/server.py` | FastAPI + WebSocket server: band connection, sessions, profiles, sharing, recovery |
-| `whoop-web/session.py` | Session engine: per-second features, markers, phase summaries, capture, exports |
-| `whoop-web/supervise.py` | Keeps the server running and restarts it after any exit |
-| `whoop-web/static/index.html` | The dashboard |
+| `sense/server.py` | FastAPI + WebSocket server: band connection, sessions, profiles, sharing, recovery |
+| `sense/session.py` | Session engine: per-second features, markers, phase summaries, capture, exports |
+| `sense/supervise.py` | Keeps the server running and restarts it after any exit |
+| `sense/static/index.html` | The dashboard |
 | `docs/images/` | Poster and screenshots |
 | `openstrap-research/` | Git submodule: [OpenStrap/research](https://github.com/OpenStrap/research), the WHOOP 4.0 BLE protocol client (unmodified) |
 
 ## Data and privacy
 
-Recordings, profiles and keys live in `whoop-web/data/`, which is git-ignored. Don't
+Recordings, profiles and keys live in `sense/data/`, which is git-ignored. Don't
 commit it. It holds personal health data.
 
 ## Credits and disclaimer

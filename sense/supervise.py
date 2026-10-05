@@ -1,5 +1,5 @@
 """
-Keeps the WHOOP Local server running: starts server.py without a console window,
+Keeps the Resilience Sense server running: starts server.py without a console window,
 restarts it a few seconds after any exit, and logs to data/server.log.
 
 Started by start.bat / start-lan.bat (via pythonw, so there's no window to close by

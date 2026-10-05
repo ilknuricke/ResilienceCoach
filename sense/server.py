@@ -1,5 +1,6 @@
 """
-Local web app for a WHOOP 4.0 band, built on OpenStrap's reference client
+Resilience Sense: the local sensing and session server of ResilienceCoach.
+The first supported device is a WHOOP 4.0 band, through OpenStrap's reference client
 (../openstrap-research/research_playground.py). The BLE protocol, sync/ACK state
 machine and decoders are theirs, unmodified; this file only adds an HTTP/WebSocket
 layer and a few read-only queries over the SQLite store the client writes.
@@ -41,13 +42,18 @@ if sys.platform == "win32" and rp.BleakClient is not None:
 DATA_DIR = HERE / "data"
 DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "whoop.db"
+def env(name: str, default=None):
+    """Setting SENSE_<name>; the older WHOOP_<name> spelling is still accepted."""
+    return os.environ.get("SENSE_" + name, os.environ.get("WHOOP_" + name, default))
+
+
 # Raw BLE capture (JSONL) is the canonical, re-decodable record but grows fast.
-CAPTURE_PATH = DATA_DIR / "whoop_capture.jsonl" if os.environ.get("WHOOP_CAPTURE") == "1" else None
+CAPTURE_PATH = DATA_DIR / "whoop_capture.jsonl" if env("CAPTURE") == "1" else None
 CONFIG_PATH = DATA_DIR / "config.json"
 
 # ── stable LAN name: advertise <MDNS_NAME>.local over mDNS and follow IP changes ──
 LAN = False
-MDNS_NAME = os.environ.get("WHOOP_MDNS_NAME", "whoop")
+MDNS_NAME = env("MDNS_NAME", "resilience")
 PORT = int(os.environ.get("PORT", 8765))
 
 
@@ -83,7 +89,7 @@ async def _mdns_loop():
                 if ip:
                     try:
                         azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
-                        info = ServiceInfo("_http._tcp.local.", "WHOOP Local._http._tcp.local.",
+                        info = ServiceInfo("_http._tcp.local.", "Resilience Sense._http._tcp.local.",
                                            addresses=[socket.inet_aton(ip)], port=PORT,
                                            server=f"{MDNS_NAME}.local.", properties={"path": "/"})
                         await azc.async_register_service(info, allow_name_change=True)
@@ -124,13 +130,13 @@ async def lifespan(_app):
         hub.store.flush()
 
 
-app = FastAPI(title="WHOOP local", lifespan=lifespan)
+app = FastAPI(title="Resilience Sense", lifespan=lifespan)
 
 
 # ── LAN sharing: localhost = full control; anyone else needs the passcode and is
-#    view-only unless WHOOP_REMOTE_CONTROL=1. ─────────────────────────────────
+#    view-only unless SENSE_REMOTE_CONTROL=1. ─────────────────────────────────
 LOCAL_IPS = {"127.0.0.1", "::1", "localhost"}
-REMOTE_CONTROL = os.environ.get("WHOOP_REMOTE_CONTROL") == "1"
+REMOTE_CONTROL = env("REMOTE_CONTROL") == "1"
 
 
 def share_key() -> str:
@@ -1206,8 +1212,8 @@ async def index():
 
 if __name__ == "__main__":
     import uvicorn
-    # --lan (or WHOOP_HOST=0.0.0.0) shares it on the local network
-    host = "0.0.0.0" if "--lan" in sys.argv else os.environ.get("WHOOP_HOST", "127.0.0.1")
+    # --lan (or SENSE_HOST=0.0.0.0) shares it on the local network
+    host = "0.0.0.0" if "--lan" in sys.argv else env("HOST", "127.0.0.1")
     LAN = host != "127.0.0.1"
     if LAN:
         mode = "with control" if REMOTE_CONTROL else "view-only"
