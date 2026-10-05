@@ -90,5 +90,5 @@ WHOOP's scores.
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE).
-Commits up to and including `aa0c1a4` were published under the MIT License and remain
+Commits up to and including `7430e14` were published under the MIT License and remain
 available under it.
