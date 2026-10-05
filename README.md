@@ -33,7 +33,7 @@ band over Bluetooth and serves a live dashboard in the browser:
 - read-only sharing on the local network (`whoop.local`, passcode-protected)
 - crash recovery: a supervisor restarts the server and resumes the open session
 
-![WHOOP Local session view: heart rate coloured by zone, wrist intensity and rhythm, phase markers, phase table and heart-rate recovery](docs/images/whoop-local-session.webp)
+![WHOOP Local session view: heart rate coloured by zone, wrist intensity and rhythm, phase markers, phase table and heart-rate recovery](docs/images/whoop-local-session.png)
 
 *An exercise calibration session: heart rate coloured by zone, with wrist movement
 intensity (bars) and rhythm (dots) underneath. Phase markers run from baseline through

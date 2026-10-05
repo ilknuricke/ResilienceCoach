@@ -170,6 +170,7 @@
         <dt>Resting HR</dt><dd><b id="pRest">–</b> <span class="note" id="pRestSrc" style="margin:0"></span></dd>
       </dl>
       <div class="note" id="zoneInfo"></div>
+      <div class="note hidden" id="profViewNote" style="color:var(--rest);font-weight:600"></div>
       <details class="ctl" style="margin-top:10px">
         <summary class="note" style="cursor:pointer;margin:0">Override manually</summary>
         <div class="row" style="margin-top:8px">
@@ -426,6 +427,7 @@ $('sessions').onchange = async e => {
 };
 function backToLive() {
   VIEW = null;
+  if (ACTIVE_SETTINGS) renderProfileCard(ACTIVE_SETTINGS, null);
   $('viewNote').textContent = '';
   $('viewBanner').classList.add('hidden');
   drawSessionChart();
@@ -435,7 +437,9 @@ $('sessions').onclick = async e => {
   const id = e.target.dataset?.view; if (!id) return; e.preventDefault();
   if (SES.active && +id === SES.id) { backToLive(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const d = await fetch('/api/session/' + id).then(r => r.json());
-  VIEW = { ...d, id: +id, start: d.markers[0]?.t ?? d.samples[0]?.t, hr_max: SES.hr_max };
+  VIEW = { ...d, id: +id, start: d.markers[0]?.t ?? d.samples[0]?.t,
+           hr_max: d.profile?.hr_max ?? d.at_time?.hr_max ?? SES.hr_max };
+  renderProfileCard(d.profile, { id: +id, at: d.at_time });
   const c = d.counts || {};
   $('viewNote').innerHTML = `Session ${id}: ${c.samples ?? 0} per-second samples, ${c.imu_records ?? 0} motion records (${(c.imu_records ?? 0) * 100} samples at ~104 Hz), ${c.raw_records ?? 0} raw records, ${c.markers ?? 0} markers, ${c.events ?? 0} events.`;
   $('viewBanner').classList.remove('hidden');
@@ -477,15 +481,35 @@ async function loadHistory() {
 
 // ── settings ──
 let PEOPLE = [];
+let ACTIVE_SETTINGS = null;
+// The active wearer (used for new sessions). The profile card follows it unless a past
+// session is being viewed, in which case the card shows that session's person.
 function renderSettings(s) {
+  ACTIVE_SETTINGS = s;
   SES.hr_max = s.hr_max; SES.hr_rest = s.hr_rest;
   const changed = JSON.stringify(PEOPLE) !== JSON.stringify(s.profiles || []);
   PEOPLE = s.profiles || [];
   $('personSel').innerHTML = PEOPLE.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '<option value="__new">+ New person…</option>';
   $('personSel').value = s.profile;
   $('wearer').textContent = s.profile_name || '–';
-  $('profName').textContent = s.profile_name || '';
   if (changed) loadSessions();
+  if (!VIEW) { renderProfileCard(s, null); drawSessionChart(); }
+}
+function renderProfileCard(s, view) {
+  const ro = !ME.control || !!view;      // a viewed person's profile is read-only here
+  $('profViewNote').classList.toggle('hidden', !view);
+  ['pAge', 'pSex', 'hrMax', 'hrRest', 'bSettings', 'bResetLearn', 'bRelearn', 'bRename'].forEach(id => $(id).disabled = ro);
+  if (!s) {
+    $('profName').textContent = 'no person assigned';
+    ['pMax', 'pMaxSrc', 'pRest', 'pRestSrc', 'zoneInfo'].forEach(id => $(id).textContent = '–');
+    $('pAge').value = ''; $('pSex').value = '';
+    $('profViewNote').textContent = `Session ${view.id} isn't assigned to a person (a test or replay). Assign it under Past sessions.`;
+    return;
+  }
+  $('profName').textContent = s.profile_name || '';
+  if (view) $('profViewNote').textContent = `Showing ${s.profile_name || 'this person'}, who wore the band in session ${view.id}.` +
+    (view.at && view.at.hr_max ? ` Zones in that session were computed with max HR ${Math.round(view.at.hr_max)}, the value at the time.` : '') +
+    ' Read-only while viewing.';
   $('pMax').textContent = Math.round(s.hr_max) + ' bpm';
   const best = s.hr_max_seen ? `best measured ${Math.round(s.hr_max_seen)}` : 'no hard effort measured yet';
   $('pMaxSrc').textContent = {
@@ -497,14 +521,12 @@ function renderSettings(s) {
   }[s.hr_max_source] || '';
   if (document.activeElement !== $('pAge')) $('pAge').value = s.age ?? '';
   $('pSex').value = s.sex ?? '';
-  $('pAge').disabled = $('pSex').disabled = !ME.control;
   $('pRest').textContent = Math.round(s.hr_rest) + ' bpm';
   $('pRestSrc').textContent = s.hr_rest_manual ? 'set manually'
     : s.n_baselines ? `median of ${s.n_baselines} session baseline${s.n_baselines > 1 ? 's' : ''}` : 'placeholder until a 30 s+ still baseline';
   const z = [0.5, 0.6, 0.7, 0.8, 0.9].map(e => Math.round(e * s.hr_max));
   $('zoneInfo').innerHTML = z.map((v, i) => `<span style="color:${ZC(i + 1)}">Z${i + 1} ≥${v}</span>`).join(' · ');
   $('hrMax').value = s.hr_max_manual ?? ''; $('hrRest').value = s.hr_rest_manual ?? '';
-  if (!VIEW) drawSessionChart();
 }
 async function loadSettings() { renderSettings(await fetch('/api/settings').then(r => r.json())); }
 $('bSettings').onclick = async () => {

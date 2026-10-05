@@ -555,8 +555,8 @@ def _max_source(cfg) -> str:
     return "measured" if seen >= 150 else "placeholder"
 
 
-def _hr_profile() -> tuple[float, float]:
-    cfg = prof()
+def _hr_profile(pid: Optional[str] = None) -> tuple[float, float]:
+    cfg = prof(pid)
     seen = cfg.get("hr_max_seen") or 0
     pred, _ = predicted_max(cfg.get("age"), cfg.get("sex"))
     if cfg.get("hr_max"):
@@ -629,8 +629,14 @@ async def api_sessions():
 @app.get("/api/session/{sid}")
 async def api_session_get(sid: int):
     samples, markers = SESSION.load(sid)
+    row = SESSION.db.execute("SELECT profile, hr_max, hr_rest FROM sessions WHERE id=?", (sid,)).fetchone()
+    pid = row[0] if row else None
     return {"samples": samples, "markers": markers, "summary": SESSION.summary(samples, markers),
-            "counts": SESSION.counts(sid)}
+            "counts": SESSION.counts(sid),
+            # whose session this is: their current profile, plus the values in effect when it ran
+            "profile": settings_payload(pid) if pid in profiles() else None,
+            "profile_id": pid,
+            "at_time": {"hr_max": row[1], "hr_rest": row[2]} if row else None}
 
 
 @app.get("/api/session/{sid}/imu.csv")
@@ -684,12 +690,15 @@ def _activate_profile(pid: str):
     SESSION.hr_max_seen = prof().get("hr_max_seen")
 
 
-def settings_payload() -> dict:
-    cfg = prof()
+def settings_payload(pid: Optional[str] = None) -> dict:
+    """The active person's profile, or any person's (pid) for viewing a past session."""
+    pid = pid or active_pid()
+    cfg = prof(pid)
     rests = cfg.get("hr_rest_seen") or []
-    return {"profile": active_pid(), "profile_name": cfg.get("name"),
+    hr_max, hr_rest = (SESSION.hr_max, SESSION.hr_rest) if pid == active_pid() else _hr_profile(pid)
+    return {"profile": pid, "profile_name": cfg.get("name"),
             "profiles": [{"id": k, "name": v.get("name")} for k, v in profiles().items()],
-            "hr_max": SESSION.hr_max, "hr_rest": SESSION.hr_rest,
+            "hr_max": hr_max, "hr_rest": hr_rest,
             "hr_max_manual": cfg.get("hr_max"), "hr_rest_manual": cfg.get("hr_rest"),
             "hr_max_seen": cfg.get("hr_max_seen"), "hr_max_seen_t": cfg.get("hr_max_seen_t"),
             "hr_max_default": HR_MAX_PLACEHOLDER, "n_baselines": len(rests),
