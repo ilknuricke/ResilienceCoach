@@ -1,13 +1,30 @@
+![Resilience Coach: a personalized coach for mind-body resilience](docs/images/poster.webp)
+
 # ResilienceCoach
 An AI Coach that uses wrist wearable data to track and coach
 
-ResilienceCoach is a local prototype for measuring **mind-body resilience**: how a
-person's physiology, attention, emotional state and movement react to a challenge and
-recover, session after session. Everything runs on your own computer. No cloud service
-is involved, and no data leaves the machine.
+**Can we train our ability to bounce back?** ResilienceCoach is a local prototype for
+measuring and coaching **mind-body resilience**: how four coupled domains react to a
+challenge and recover, session after session.
 
-The first component, **WHOOP Local** (`whoop-web/`), connects to a WHOOP 4.0 band over
-Bluetooth and serves a live dashboard in the browser:
+- **Physiology:** heart rate and heart-rate variability from a wrist wearable
+- **Cognition:** a brief reaction-time task
+- **Emotion:** check-ins on stress, mood and energy
+- **Movement:** wrist motion and activity context
+
+Each session runs one loop: **sense → state → recommend → act → re-measure → learn**.
+The person tries a small, safe activity (breathe, walk, move or reset), the response is
+measured, and repeated sessions show what helps that person. Recovery patterns are being
+explored as candidate markers of aging-related resilience. This is a research prototype,
+and any aging relevance still needs validation.
+
+Everything runs on your own computer. No cloud service is involved, and no data leaves
+the machine.
+
+## WHOOP Local
+
+**WHOOP Local** (`whoop-web/`) is the sensing and session layer. It connects to a WHOOP 4.0
+band over Bluetooth and serves a live dashboard in the browser:
 
 - live heart rate, movement intensity (wrist accelerometer, ~104 Hz) and movement rhythm
 - guided sessions with timed steps, markers and haptic cues on the band
@@ -16,9 +33,18 @@ Bluetooth and serves a live dashboard in the browser:
 - read-only sharing on the local network (`whoop.local`, passcode-protected)
 - crash recovery: a supervisor restarts the server and resumes the open session
 
-Planned next: a **mind-body session** (check-in sliders, a reaction-time probe, a mild
-mental challenge, paced breathing / mental reset / rest, and a recovery phase in which
-mind and body are both sampled), with HRV computed from the band's stored beat
+![WHOOP Local session view: heart rate coloured by zone, wrist intensity and rhythm, phase markers, phase table and heart-rate recovery](docs/images/whoop-local-session.webp)
+
+*An exercise calibration session: heart rate coloured by zone, with wrist movement
+intensity (bars) and rhythm (dots) underneath. Phase markers run from baseline through
+warm-up, build and peak to recovery. The phase table and the 60-second heart-rate
+recovery are computed live.*
+
+### Planned next
+
+A **mind-body session**: check-in sliders, a reaction-time probe, a mild mental
+challenge, then paced breathing, a mental reset or quiet rest, and a recovery phase in
+which mind and body are both sampled. HRV is computed from the band's stored beat
 intervals after the session.
 
 ## Setup (Windows)
@@ -45,6 +71,7 @@ device can hold the band at a time.
 | `whoop-web/session.py` | Session engine: per-second features, markers, phase summaries, capture, exports |
 | `whoop-web/supervise.py` | Keeps the server running and restarts it after any exit |
 | `whoop-web/static/index.html` | The dashboard |
+| `docs/images/` | Poster and screenshots |
 | `openstrap-research/` | Git submodule: [OpenStrap/research](https://github.com/OpenStrap/research), the WHOOP 4.0 BLE protocol client (unmodified) |
 
 ## Data and privacy
